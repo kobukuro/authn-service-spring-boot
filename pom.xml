@@ -46,6 +46,12 @@
                 </dependency>
             </dependencies>
         </profile>
+        <profile>
+            <id>ci</id>
+            <properties>
+                <spring.profiles.active>ci</spring.profiles.active>
+            </properties>
+        </profile>
     </profiles>
     <dependencies>
         <dependency>
