@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      VERIFICATION_TOKEN_EXPIRATION_MILLISECONDS: ${{ secrets.VERIFICATION_TOKEN_EXPIRATION_MILLISECONDS }}
+
     steps:
       - uses: actions/checkout@v3
 
