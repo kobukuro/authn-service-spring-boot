@@ -49,7 +49,7 @@
         <profile>
             <id>ci</id>
             <properties>
-                <spring.profiles.active>ci</spring.profiles.active>
+                <profiles.active>ci</profiles.active>
             </properties>
         </profile>
     </profiles>
