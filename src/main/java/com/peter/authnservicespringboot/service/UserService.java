@@ -5,4 +5,5 @@ import com.peter.authnservicespringboot.domain.entity.AppUser;
 
 public interface UserService {
     AppUser register(UserRegistrationRequest request);
+    void activateAccount(String token);
 }

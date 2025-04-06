@@ -1,8 +1,11 @@
 package com.peter.authnservicespringboot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.peter.authnservicespringboot.domain.dto.UserActivationRequest;
 import com.peter.authnservicespringboot.domain.dto.UserRegistrationRequest;
+import com.peter.authnservicespringboot.domain.entity.AppUser;
 import com.peter.authnservicespringboot.repository.UserRepository;
+import com.peter.authnservicespringboot.util.JwtUtils;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UserRegistrationIntegrationTest {
 
     private static final String REGISTER_API_PATH = "/api/v1/users";
+    private static final String ACTIVATION_API_PATH = "/api/v1/users/activation";
 
     @Autowired
     private MockMvc mockMvc;
@@ -35,6 +39,9 @@ public class UserRegistrationIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtUtils jwtUtils;
 
     @Autowired
     private Flyway flyway;
@@ -198,5 +205,91 @@ public class UserRegistrationIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals(0, userRepository.count());
+    }
+
+    /**
+     * Test successful account activation
+     */
+    @Test
+    void whenValidToken_thenActivateAccount() throws Exception {
+        // First register a user
+        mockMvc.perform(post(REGISTER_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
+
+        String validToken = jwtUtils.generateVerificationToken(testEmail);
+        UserActivationRequest activationRequest = new UserActivationRequest(validToken);
+
+        mockMvc.perform(post(ACTIVATION_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(activationRequest)))
+                .andExpect(status().isNoContent());
+
+        AppUser user = userRepository.findByEmail(testEmail).orElseThrow();
+        assertTrue(user.getEnabled());
+    }
+
+    /**
+     * Test activation with invalid token
+     */
+    @Test
+    void whenInvalidToken_thenReturns401() throws Exception {
+        // Register a user first
+        mockMvc.perform(post(REGISTER_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
+
+        UserActivationRequest invalidRequest = new UserActivationRequest("invalid-token");
+
+        mockMvc.perform(post(ACTIVATION_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isUnauthorized());
+
+        AppUser user = userRepository.findByEmail(testEmail).orElseThrow();
+        assertFalse(user.getEnabled());
+    }
+
+    /**
+     * Test activation of already activated account
+     */
+    @Test
+    void whenAlreadyActivated_thenReturns409() throws Exception {
+        // Register and activate user
+        mockMvc.perform(post(REGISTER_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRequest)))
+                .andExpect(status().isCreated());
+
+        String validToken = jwtUtils.generateVerificationToken(testEmail);
+        UserActivationRequest activationRequest = new UserActivationRequest(validToken);
+
+        // First activation
+        mockMvc.perform(post(ACTIVATION_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(activationRequest)))
+                .andExpect(status().isNoContent());
+
+        // Try to activate again
+        mockMvc.perform(post(ACTIVATION_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(activationRequest)))
+                .andExpect(status().isConflict());
+    }
+
+    /**
+     * Test activation with token containing non-existent email
+     */
+    @Test
+    void whenNonExistentEmail_thenReturns404() throws Exception {
+        String tokenWithNonExistentEmail = jwtUtils.generateVerificationToken("nonexistent@example.com");
+        UserActivationRequest activationRequest = new UserActivationRequest(tokenWithNonExistentEmail);
+
+        mockMvc.perform(post(ACTIVATION_API_PATH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(activationRequest)))
+                .andExpect(status().isNotFound());
     }
 }

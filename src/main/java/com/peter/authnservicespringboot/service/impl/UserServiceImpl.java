@@ -3,6 +3,9 @@ package com.peter.authnservicespringboot.service.impl;
 import com.peter.authnservicespringboot.domain.dto.UserRegistrationRequest;
 import com.peter.authnservicespringboot.domain.entity.AppUser;
 import com.peter.authnservicespringboot.exception.EmailAlreadyExistsException;
+import com.peter.authnservicespringboot.exception.EmailAlreadyVerifiedException;
+import com.peter.authnservicespringboot.exception.EmailNotFoundException;
+import com.peter.authnservicespringboot.exception.TokenNotValidException;
 import com.peter.authnservicespringboot.repository.UserRepository;
 import com.peter.authnservicespringboot.service.EmailService;
 import com.peter.authnservicespringboot.service.UserService;
@@ -60,5 +63,21 @@ public class UserServiceImpl implements UserService {
         String hashedPassword = BCrypt.hashpw(request.password(), BCrypt.gensalt());
         return userRepository.save(new AppUser(firstName, lastName, email,
                 hashedPassword, false));
+    }
+
+    @Override
+    public void activateAccount(String token) {
+        if (!jwtUtils.validateToken(token)) {
+            throw new TokenNotValidException("Invalid or expired verification token");
+        }
+        String email = jwtUtils.getEmailFromToken(token);
+        AppUser user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EmailNotFoundException("Email not found"));
+
+        if (user.getEnabled()) {
+            throw new EmailAlreadyVerifiedException("This email has already been verified.");
+        }
+        user.setEnabled(true);
+        userRepository.save(user);
     }
 }

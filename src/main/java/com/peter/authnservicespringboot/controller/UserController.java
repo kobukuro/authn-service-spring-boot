@@ -1,5 +1,6 @@
 package com.peter.authnservicespringboot.controller;
 
+import com.peter.authnservicespringboot.domain.dto.UserActivationRequest;
 import com.peter.authnservicespringboot.domain.dto.UserRegistrationRequest;
 import com.peter.authnservicespringboot.domain.dto.UserRegistrationResponse;
 import com.peter.authnservicespringboot.domain.entity.AppUser;
@@ -57,5 +58,37 @@ public class UserController {
                 registeredUser.getCreatedAt()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Activate user account",
+            description = "Activate a user account using the verification token sent via email"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Account activated successfully",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid or expired verification token",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Email not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Email has already been verified",
+                    content = @Content
+            )
+    })
+    @PostMapping("/activation")
+    public ResponseEntity<Void> activateAccount(@Valid @RequestBody UserActivationRequest request) {
+        userService.activateAccount(request.token());
+        return ResponseEntity.noContent().build();
     }
 }
