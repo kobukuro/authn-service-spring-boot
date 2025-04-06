@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      VERIFICATION_TOKEN_EXPIRATION_MILLISECONDS: ${{ secrets.VERIFICATION_TOKEN_EXPIRATION_MILLISECONDS }}
+
     steps:
       - uses: actions/checkout@v3
 
@@ -18,7 +21,7 @@ jobs:
           cache: maven
 
       - name: Start database with Docker Compose
-        run: docker compose up -d
+        run: docker compose -f docker-compose-ci.yml up -d
 
       - name: Wait for database to be ready
         run: |
